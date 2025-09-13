@@ -30,7 +30,7 @@ jobs:
         
     - name: Clone project
       run: |
-        git clone --recurse-submodules https://github.com/lushunming/AndroidCatVodSpider project
+        git clone --recurse-submodules https://github.com/yilishawk/AndroidCatVodSpiderr project
         sed -i 's/mirrors.cloud.tencent.com\gradle/services.gradle.org\/distributions/g' project/gradle/wrapper/gradle-wrapper.properties        
         cp -r ./project/json/index.json ./json/index.json
         
