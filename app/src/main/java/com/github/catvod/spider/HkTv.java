@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 
 public class HkTv extends Spider {
 
-    private static String siteUrl = "http://www.viptv01.com";
+    private static String siteUrl = "http://www.tvyb03.com";
     private static String cateUrl = siteUrl + "/vod/type/id/";
     private static String detailUrl = siteUrl + "/vod/detail/id/";
     private static String playUrl = siteUrl + "/vod/play/id/";
@@ -62,8 +62,8 @@ public class HkTv extends Spider {
     public String homeContent(boolean filter) throws Exception {
         List<Vod> list = new ArrayList<>();
         List<Class> classes = new ArrayList<>();
-        String[] typeIdList = { "13","1", "2", "3", "4", "19"};
-        String[] typeNameList = { "国产剧","电影", "电视剧", "综艺", "动漫", "短片"};
+        String[] typeIdList = {"1", "2", "3", "4", "19"};
+        String[] typeNameList = {"电影", "电视剧", "综艺", "动漫", "短片"};
         for (int i = 0; i < typeNameList.length; i++) {
             classes.add(new Class(typeIdList[i], typeNameList[i]));
         }
