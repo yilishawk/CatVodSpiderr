@@ -24,14 +24,18 @@ jobs:
         chmod +x gradlew
         ./gradlew :app:assembleRelease --no-daemon --stacktrace --info
 
-    - name: Generate custom_spider.jar
+    - name: Find APK and Generate JAR
       run: |
         # 清理
         mkdir -p jar
         rm -rf jar/custom_spider.jar jar/custom_spider.jar.md5
 
-        # 提取 classes.jar 从 APK
-        unzip -q app/build/outputs/apk/release/app-release.apk classes.jar -d temp_apk
+        # 查找 APK 文件
+        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+        echo "找到 APK: $APK_PATH"
+
+        # 解压 classes.jar
+        unzip -q "$APK_PATH" classes.jar -d temp_apk
         cp temp_apk/classes.jar jar/custom_spider.jar
 
         # 生成 MD5
