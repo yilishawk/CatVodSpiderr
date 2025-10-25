@@ -22,7 +22,7 @@ jobs:
     - name: Build JAR
       run: |
         chmod +x gradlew
-        ./gradlew :tools:buildAndGenJar --no-daemon --stacktrace
+        ./gradlew buildAndGenJar --no-daemon --stacktrace --info
 
     - name: Verify JAR
       run: |
