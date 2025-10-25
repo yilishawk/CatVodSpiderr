@@ -8,9 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -26,17 +28,29 @@ jobs:
 
     - name: Find APK and Generate JAR
       run: |
-        # 清理
-        mkdir -p jar
-        rm -rf jar/custom_spider.jar jar/custom_spider.jar.md5
+        # 清理旧文件
+        mkdir -p jar temp
+        rm -rf jar/custom_spider.jar jar/custom_spider.jar.md5 temp/*
 
-        # 查找 APK 文件
-        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-        echo "找到 APK: $APK_PATH"
+        # 查找任意 .apk 文件
+        APK=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+        if [ -z "$APK" ]; then
+          echo "未找到 APK 文件！"
+          exit 1
+        fi
+        echo "找到 APK: $APK"
+
+        # 查找 classes.jar（在 lib/ 目录下）
+        JAR_IN_APK=$(unzip -l "$APK" | grep -m1 "classes.jar" | awk '{print $4}')
+        if [ -z "$JAR_IN_APK" ]; then
+          echo "APK 中未找到 classes.jar！"
+          exit 1
+        fi
+        echo "找到 JAR: $JAR_IN_APK"
 
         # 解压 classes.jar
-        unzip -q "$APK_PATH" classes.jar -d temp_apk
-        cp temp_apk/classes.jar jar/custom_spider.jar
+        unzip -q "$APK" "$JAR_IN_APK" -d temp
+        cp "temp/$JAR_IN_APK" jar/custom_spider.jar
 
         # 生成 MD5
         echo "$(openssl md5 -hex jar/custom_spider.jar | awk '{print $2}')" > jar/custom_spider.jar.md5
@@ -49,9 +63,17 @@ jobs:
         name: custom_spider.jar
         path: jar/custom_spider.jar
 
-    - name: Commit & Push
+    - name: Upload MD5
+      uses: actions/upload-artifact@v4
+      with:
+        name: custom_spider.jar.md5
+        path: jar/custom_spider.jar.md5
+
+    - name: Commit & Push JAR + MD5
       uses: EndBug/add-and-commit@v9
       with:
+        author_name: github_actions
+        author_email: actions@github.com
         message: 'update spider jar'
         add: 'jar/custom_spider.jar jar/custom_spider.jar.md5'
         push: true
