@@ -1,9 +1,9 @@
 name: Spider
 
 on:
-  schedule:
-    - cron: '0 0 */3 * *'  # 可删，视需求
-  workflow_dispatch:
+  workflow_dispatch:      # 手动触发
+  push:
+    branches: [ main ]    # 提交代码时自动触发（可选）
 
 jobs:
   build:
@@ -11,66 +11,76 @@ jobs:
     timeout-minutes: 20
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
       with:
-        submodules: recursive  # 保留子模块
+        submodules: recursive
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: 'gradle'
 
-    - name: Delete old runs
-      uses: Mattraks/delete-workflow-runs@v2
-      with:
-        token: ${{ github.token }}
-        retain_days: 0
-        keep_minimum_runs: 2
+    - name: Grant gradlew permission
+      run: chmod +x gradlew
 
-    # 删除 Customize Spider（可选，自定义删爬虫）
-    - name: Customize Spider
+    - name: Build Release APK
       run: |
-        # 示例：删除 Ali 爬虫
-        # rm -rf app/src/main/java/com/github/catvod/spider/Ali.java
-        sed -i "/Doll/d" app/src/main/java/com/github/catvod/debug/MainActivity.java
-
-    - name: Build Release
-      run: |
-        chmod +x gradlew
         ./gradlew assembleRelease --build-cache --parallel --daemon --warning-mode all
 
     - name: Generate custom_spider.jar
       run: |
+        # 清理旧文件
         mkdir -p jar
-        rm -rf jar/custom_spider.jar jar/custom_spider.jar.md5
+        rm -rf jar/custom_spider.jar jar/custom_spider.jar.md5 jar/apktool.jar jar/baksmali.jar jar/Smali_classes jar/spider
 
-        # 下载工具
-        curl -L https://github.com/iBotPeaches/Apktool/releases/download/v2.7.0/apktool_2.7kb.jar -o jar/apktool.jar
-        curl -L https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.5.2.jar -o jar/baksmali.jar
+        # 下载工具（正确链接！）
+        curl -L -o jar/apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.7.0/apktool_2.7.0.jar
+        curl -L -o jar/baksmali.jar https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.5.2.jar
 
-        # 反编译
+        # 验证工具下载成功
+        if [ ! -f jar/apktool.jar ] || [ ! -f jar/baksmali.jar ]; then
+          echo "工具下载失败！"
+          exit 1
+        fi
+
+        # 反编译 dex
         java -jar jar/baksmali.jar d app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex -o jar/Smali_classes
 
-        # 打包
+        # 准备 smali 目录
         mkdir -p jar/spider/smali/com/github/catvod/
         cp -r jar/Smali_classes/com/github/catvod/spider jar/spider/smali/com/github/catvod/
+
+        # 使用 apktool 打包
         java -jar jar/apktool.jar b jar/spider -o jar/spider.apk
 
-        # 提取 JAR
+        # 提取 classes.dex 作为 JAR
         unzip -p jar/spider.apk classes.dex > jar/custom_spider.jar
 
         # 生成 MD5
         echo "$(openssl md5 -hex jar/custom_spider.jar | awk '{print $2}')" > jar/custom_spider.jar.md5
 
-    - name: Upload JAR
+        echo "custom_spider.jar 生成成功！"
+
+    - name: Upload JAR to Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: custom_spider.jar
         path: jar/custom_spider.jar
 
-    - name: Commit & Push
+    - name: Upload MD5 to Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: custom_spider.jar.md5
+        path: jar/custom_spider.jar.md5
+
+    - name: Commit & Push JAR + MD5
       uses: EndBug/add-and-commit@v9
       with:
+        author_name: github_actions
+        author_email: actions@github.com
         message: 'update spider jar'
         add: 'jar/custom_spider.jar jar/custom_spider.jar.md5'
+        push: true
