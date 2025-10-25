@@ -1,4 +1,4 @@
-name: Spider
+name: Build Standard custom_spider.jar
 
 on:
   workflow_dispatch:
@@ -27,18 +27,32 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleRelease --build-cache --parallel --daemon --warning-mode all
 
-    - name: Generate custom_spider.jar
+    - name: Generate Standard JAR
       run: |
+        # 清理
         mkdir -p jar
         rm -rf jar/custom_spider.jar jar/custom_spider.jar.md5
 
-        # 直接复制 classes.dex
-        cp app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex jar/custom_spider.jar
+        # 解压 AAR
+        unzip -q app/build/outputs/aar/app-release.aar -d temp_aar
+        unzip -q temp_aar/classes.jar -d jar/classes
+
+        # 创建标准 JAR
+        cd jar/classes
+        zip -r ../custom_spider.jar .
+        cd ../..
+
+        # 添加 MANIFEST（必须）
+        mkdir -p jar/META-INF
+        echo "Manifest-Version: 1.0" > jar/META-INF/MANIFEST.MF
+        cd jar
+        zip -u custom_spider.jar META-INF/MANIFEST.MF
+        cd ..
 
         # 生成 MD5
         echo "$(openssl md5 -hex jar/custom_spider.jar | awk '{print $2}')" > jar/custom_spider.jar.md5
 
-        echo "custom_spider.jar 生成成功！"
+        echo "标准 custom_spider.jar 生成成功！"
 
     - name: Upload JAR
       uses: actions/upload-artifact@v4
@@ -49,6 +63,6 @@ jobs:
     - name: Commit & Push
       uses: EndBug/add-and-commit@v9
       with:
-        message: 'update spider jar'
+        message: 'update standard spider jar'
         add: 'jar/custom_spider.jar jar/custom_spider.jar.md5'
         push: true
