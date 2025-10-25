@@ -19,23 +19,20 @@ jobs:
         distribution: 'temurin'
         cache: 'gradle'
 
-    - name: Build JAR
+    - name: Build Release
       run: |
         chmod +x gradlew
-        ./gradlew buildAndGenJar --no-daemon --stacktrace --info
+        ./gradlew :app:assembleRelease --no-daemon --stacktrace --info
 
-    - name: Verify JAR
+    - name: Generate custom_spider.jar
       run: |
-        if [ ! -f "jar/custom_spider.jar" ]; then
-          echo "JAR 生成失败！"
-          ls -la jar/ || true
-          exit 1
-        fi
-        echo "custom_spider.jar 生成成功！"
-
-    - name: Generate MD5
-      run: |
+        # 解压 AAR
+        unzip -q app/build/outputs/aar/app-release.aar -d temp_aar
+        # 提取 classes.jar
+        cp temp_aar/classes.jar jar/custom_spider.jar
+        # 生成 MD5
         echo "$(openssl md5 -hex jar/custom_spider.jar | awk '{print $2}')" > jar/custom_spider.jar.md5
+        echo "custom_spider.jar 生成成功！"
 
     - name: Upload JAR
       uses: actions/upload-artifact@v4
